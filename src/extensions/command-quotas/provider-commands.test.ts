@@ -1,43 +1,61 @@
 import { describe, expect, it } from "vitest";
 import {
-  getProviderCommandInfo,
-  type ProviderCommandInfo,
+	getProviderCommandInfo,
+	type ProviderCommandInfo,
 } from "./provider-commands.js";
 
 describe("getProviderCommandInfo", () => {
-  it("maps anthropic to anthropic:quotas", () => {
-    const info = getProviderCommandInfo("anthropic");
-    expect(info).toMatchObject<Partial<ProviderCommandInfo>>({
-      provider: "anthropic",
-      commandName: "anthropic:quotas",
-      title: "Anthropic Quotas",
-    });
-  });
+	it("maps anthropic to anthropic:quotas", () => {
+		const info = getProviderCommandInfo("anthropic");
+		expect(info).toMatchObject<Partial<ProviderCommandInfo>>({
+			provider: "anthropic",
+			commandName: "anthropic:quotas",
+			title: "Anthropic Quotas",
+		});
+	});
 
-  it("maps openai-codex to codex:quotas", () => {
-    const info = getProviderCommandInfo("openai-codex");
-    expect(info).toMatchObject<Partial<ProviderCommandInfo>>({
-      provider: "openai-codex",
-      commandName: "codex:quotas",
-      title: "OpenAI Codex Quotas",
-    });
-  });
+	it("maps openai-codex to codex:quotas", () => {
+		const info = getProviderCommandInfo("openai-codex");
+		expect(info).toMatchObject<Partial<ProviderCommandInfo>>({
+			provider: "openai-codex",
+			commandName: "codex:quotas",
+			title: "OpenAI Codex Quotas",
+		});
+	});
 
-  it("maps github-copilot to github:quotas", () => {
-    const info = getProviderCommandInfo("github-copilot");
-    expect(info).toMatchObject<Partial<ProviderCommandInfo>>({
-      provider: "github-copilot",
-      commandName: "github:quotas",
-      title: "GitHub Copilot Quotas",
-    });
-  });
+	it("maps github-copilot to github:quotas", () => {
+		const info = getProviderCommandInfo("github-copilot");
+		expect(info).toMatchObject<Partial<ProviderCommandInfo>>({
+			provider: "github-copilot",
+			commandName: "github:quotas",
+			title: "GitHub Copilot Quotas",
+		});
+	});
 
-  it("maps openrouter to openrouter:quotas", () => {
-    const info = getProviderCommandInfo("openrouter");
-    expect(info).toMatchObject<Partial<ProviderCommandInfo>>({
-      provider: "openrouter",
-      commandName: "openrouter:quotas",
-      title: "OpenRouter Quotas",
-    });
-  });
+	it("maps openrouter to openrouter:quotas", () => {
+		const info = getProviderCommandInfo("openrouter");
+		expect(info).toMatchObject<Partial<ProviderCommandInfo>>({
+			provider: "openrouter",
+			commandName: "openrouter:quotas",
+			title: "OpenRouter Quotas",
+		});
+	});
+
+	it("maps deepseek to deepseek:quotas", () => {
+		const info = getProviderCommandInfo("deepseek");
+		expect(info).toMatchObject<Partial<ProviderCommandInfo>>({
+			provider: "deepseek",
+			commandName: "deepseek:quotas",
+			title: "DeepSeek Quotas",
+		});
+	});
+
+	it("maps synthetic to synthetic:quotas", () => {
+		const info = getProviderCommandInfo("synthetic");
+		expect(info).toMatchObject<Partial<ProviderCommandInfo>>({
+			provider: "synthetic",
+			commandName: "synthetic:quotas",
+			title: "Synthetic Quotas",
+		});
+	});
 });
