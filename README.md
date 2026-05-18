@@ -1,6 +1,6 @@
 # @latentminds/pi-quotas
 
-Quota monitoring for Pi. Shows remaining usage and rate limits for Anthropic, OpenAI Codex, GitHub Copilot, OpenRouter, and Synthetic — directly in your Pi session.
+Quota monitoring for Pi. Shows remaining usage and rate limits for Anthropic, OpenAI Codex, GitHub Copilot, OpenRouter, Synthetic, and DeepSeek — directly in your Pi session.
 
 ## Screenshots
 
@@ -42,6 +42,7 @@ pi -e npm:@latentminds/pi-quotas
 | `/github:quotas`     | GitHub Copilot quotas only                 |
 | `/openrouter:quotas` | OpenRouter quotas only                     |
 | `/synthetic:quotas`  | Synthetic quotas only                      |
+| `/deepseek:quotas`   | DeepSeek balance only                      |
 | `/quotas:settings`   | Toggle individual features on or off       |
 
 
@@ -64,7 +65,7 @@ Automatic notifications when projected usage is on track to exceed limits before
 Use `/quotas:settings` to enable or disable:
 
 - Combined `/quotas` command
-- Per-provider commands (`/anthropic:quotas`, `/codex:quotas`, `/github:quotas`, `/openrouter:quotas`, `/synthetic:quotas`)
+- Per-provider commands (`/anthropic:quotas`, `/codex:quotas`, `/github:quotas`, `/openrouter:quotas`, `/synthetic:quotas`, `/deepseek:quotas`)
 - Footer status widget
 - Quota warning notifications
 - **Defer to Synthetic** — when both pi-quotas and [pi-synthetic](https://www.npmjs.com/package/@aliou/pi-synthetic) are loaded, pi-quotas hides its own Synthetic footer to avoid showing duplicate quota information. Enabled by default; disable if you prefer to see both footers.
@@ -81,6 +82,7 @@ Settings can be saved globally (`~/.pi/agent/extensions/quotas.json`) or per-pro
 | GitHub Copilot | Premium/chat/completions per month                             | Remaining/entitlement counts with overage indicators                                                |
 | OpenRouter     | Monthly budget, daily/weekly/monthly usage                     | USD spending tracking with cents precision; optional per-key budget limits; UTC-based period resets |
 | Synthetic      | Subscription, search/hour, free tools, weekly tokens, 5h limit | Request counts and token budgets; rolling five-hour rate limit; weekly token regen                  |
+| DeepSeek       | Balance (USD/CNY)                                               | Remaining account balance displayed as a currency window; no rate-limit or usage-history APIs       |
 
 
 ## Credentials
@@ -92,8 +94,9 @@ pi-quotas reads existing Pi auth entries from `~/.pi/agent/auth.json`:
 - `github-copilot` — GitHub Copilot OAuth token (falls back to `gh auth token` if needed)
 - `openrouter` — OpenRouter API key (Bearer token)
 - `synthetic` — Synthetic API key (set the `SYNTHETIC_API_KEY` environment variable)
+- `deepseek` — DeepSeek API key (set the `DEEPSEEK_API_KEY` environment variable)
 
-No additional setup is required - if Pi can use the provider, pi-quotas can check its quotas. For Synthetic, export `SYNTHETIC_API_KEY` in your shell or Pi environment.
+No additional setup is required - if Pi can use the provider, pi-quotas can check its quotas. For Synthetic and DeepSeek, export the corresponding environment variable in your shell or Pi environment.
 
 ## Requirements
 

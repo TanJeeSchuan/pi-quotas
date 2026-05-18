@@ -3,7 +3,7 @@ import { parseAnthropicUsage } from "./providers.js";
 import { parseCodexUsage } from "./providers.js";
 import { parseGitHubCopilotUsage } from "./providers.js";
 import { parseOpenRouterUsage } from "./providers.js";
-import { parseSyntheticUsage } from "./providers.js";
+import { parseSyntheticUsage, parseDeepSeekUsage } from "./providers.js";
 
 describe("parseAnthropicUsage", () => {
   it("maps oauth usage response into quota windows", () => {
@@ -539,5 +539,124 @@ describe("parseSyntheticUsage", () => {
   it("returns empty array when no data", () => {
     const windows = parseSyntheticUsage({});
     expect(windows).toHaveLength(0);
+  });
+});
+
+describe("parseDeepSeekUsage", () => {
+  it("parses balance response with USD", () => {
+    const windows = parseDeepSeekUsage({
+      is_available: true,
+      balance_infos: [
+        {
+          currency: "CNY",
+          total_balance: "0.00",
+          granted_balance: "0.00",
+          topped_up_balance: "0.00",
+        },
+        {
+          currency: "USD",
+          total_balance: "2.50",
+          granted_balance: "0.00",
+          topped_up_balance: "2.50",
+        },
+      ],
+    });
+
+    expect(windows).toHaveLength(1);
+    expect(windows[0]).toMatchObject({
+      provider: "deepseek",
+      label: "Balance (USD)",
+      isCurrency: true,
+      usedValue: 2.5,
+      limitValue: 0,
+      showPace: false,
+    });
+  });
+
+  it("falls back to CNY when USD is zero", () => {
+    const windows = parseDeepSeekUsage({
+      is_available: true,
+      balance_infos: [
+        {
+          currency: "USD",
+          total_balance: "0.00",
+          granted_balance: "0.00",
+          topped_up_balance: "0.00",
+        },
+        {
+          currency: "CNY",
+          total_balance: "15.80",
+          granted_balance: "5.00",
+          topped_up_balance: "10.80",
+        },
+      ],
+    });
+
+    expect(windows).toHaveLength(1);
+    expect(windows[0]).toMatchObject({
+      provider: "deepseek",
+      label: "Balance (CNY)",
+      isCurrency: true,
+      usedValue: 15.8,
+    });
+  });
+
+  it("handles empty balance_infos", () => {
+    const windows = parseDeepSeekUsage({
+      is_available: true,
+      balance_infos: [],
+    });
+    expect(windows).toHaveLength(0);
+  });
+
+  it("handles missing balance_infos", () => {
+    const windows = parseDeepSeekUsage({ is_available: true });
+    expect(windows).toHaveLength(0);
+  });
+
+  it("handles null/undefined data", () => {
+    expect(parseDeepSeekUsage(null)).toHaveLength(0);
+    expect(parseDeepSeekUsage(undefined)).toHaveLength(0);
+  });
+
+  it("uses first entry when only one currency is present", () => {
+    const windows = parseDeepSeekUsage({
+      is_available: true,
+      balance_infos: [
+        {
+          currency: "CNY",
+          total_balance: "8.88",
+          granted_balance: "0.00",
+          topped_up_balance: "8.88",
+        },
+      ],
+    });
+
+    expect(windows).toHaveLength(1);
+    expect(windows[0]).toMatchObject({
+      provider: "deepseek",
+      label: "Balance (CNY)",
+      usedValue: 8.88,
+    });
+  });
+
+  it("shows unavailable when is_available is false but still returns balance", () => {
+    const windows = parseDeepSeekUsage({
+      is_available: false,
+      balance_infos: [
+        {
+          currency: "USD",
+          total_balance: "5.00",
+          granted_balance: "0.00",
+          topped_up_balance: "5.00",
+        },
+      ],
+    });
+
+    expect(windows).toHaveLength(1);
+    expect(windows[0]).toMatchObject({
+      provider: "deepseek",
+      usedValue: 5.0,
+    });
   });
 });

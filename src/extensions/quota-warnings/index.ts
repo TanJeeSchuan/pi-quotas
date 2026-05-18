@@ -71,7 +71,9 @@ export default async function (pi: ExtensionAPI) {
       ? "Codex"
       : provider === "github-copilot"
         ? "GitHub Copilot"
-        : "Anthropic";
+        : provider === "deepseek"
+          ? "DeepSeek"
+          : "Anthropic";
 
     const lines = toNotify.map(({ window, assessment }) => {
       const projected = Math.round(assessment.projectedPercent);

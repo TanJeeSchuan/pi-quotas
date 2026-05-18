@@ -42,6 +42,9 @@ const SHORT_LABELS: Record<string, string> = {
   "Requests / 5h": "5h",
   "Search / hour": "search",
   "Free Tool Calls / day": "tools",
+  // DeepSeek labels
+  "Balance (USD)": "balance",
+  "Balance (CNY)": "balance",
 };
 
 /**

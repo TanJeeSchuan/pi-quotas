@@ -40,5 +40,11 @@ export function getProviderCommandInfo(
         commandName: "synthetic:quotas",
         title: "Synthetic Quotas",
       };
+    case "deepseek":
+      return {
+        provider,
+        commandName: "deepseek:quotas",
+        title: "DeepSeek Quotas",
+      };
   }
 }

@@ -434,3 +434,47 @@ export function parseSyntheticUsage(data: any): QuotaWindow[] {
 
   return windows;
 }
+
+/**
+ * Parse DeepSeek balance API response.
+ *
+ * The response is a { is_available, balance_infos[] } object where each entry
+ * has { currency, total_balance, granted_balance, topped_up_balance }.
+ * We prefer the USD balance; if that is zero we fall back to CNY.
+ * The total_balance is the remaining credit — displayed as a tracking-only
+ * currency window since there is no usage history or reset window.
+ */
+export function parseDeepSeekUsage(data: any): QuotaWindow[] {
+  const windows: QuotaWindow[] = [];
+
+  if (!data?.balance_infos || !Array.isArray(data.balance_infos)) {
+    return windows;
+  }
+
+  // Prefer USD balance, fall back to CNY
+  const preferred = data.balance_infos.find(
+    (b: any) => b?.currency === "USD" && Number(b.total_balance ?? 0) > 0,
+  ) ?? data.balance_infos.find(
+    (b: any) => b?.currency === "CNY" && Number(b.total_balance ?? 0) > 0,
+  ) ?? data.balance_infos[0];
+
+  if (!preferred) return windows;
+
+  const balance = Number(preferred.total_balance ?? 0);
+  const currencyLabel = preferred.currency === "CNY" ? "CNY" : "USD";
+
+  windows.push({
+    provider: "deepseek",
+    label: `Balance (${currencyLabel})`,
+    usedPercent: 0,
+    resetsAt: new Date(0),
+    windowSeconds: 0,
+    usedValue: balance,
+    limitValue: 0,
+    isCurrency: true,
+    showPace: false,
+    nextLabel: "Available",
+  });
+
+  return windows;
+}

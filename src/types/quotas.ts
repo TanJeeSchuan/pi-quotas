@@ -3,7 +3,8 @@ export type SupportedQuotaProvider =
   | "openai-codex"
   | "github-copilot"
   | "openrouter"
-  | "synthetic";
+  | "synthetic"
+  | "deepseek";
 
 export type QuotasErrorKind =
   | "cancelled"

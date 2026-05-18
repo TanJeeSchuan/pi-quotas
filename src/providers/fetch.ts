@@ -10,6 +10,7 @@ import {
   parseGitHubCopilotUsage,
   parseOpenRouterUsage,
   parseSyntheticUsage,
+  parseDeepSeekUsage,
 } from "./providers.js";
 
 const FETCH_TIMEOUT_MS = 15_000;
@@ -325,10 +326,29 @@ export async function fetchSyntheticQuotas(
   return success("synthetic", parseSyntheticUsage(result.data));
 }
 
+export async function fetchDeepSeekQuotas(
+  _authStorage: AuthStorage,
+  signal?: AbortSignal,
+): Promise<QuotasResult> {
+  const apiKey = process.env.DEEPSEEK_API_KEY;
+  if (!apiKey) return failure("No DeepSeek API key found (set DEEPSEEK_API_KEY)", "config");
+
+  const result = await fetchJson(
+    "https://api.deepseek.com/user/balance",
+    {
+      headers: { Authorization: `Bearer ${apiKey}` },
+    },
+    signal,
+  );
+  if (!result.ok) return failure(result.message, result.kind);
+  return success("deepseek", parseDeepSeekUsage(result.data));
+}
+
 export const PROVIDER_FETCHERS = {
   anthropic: fetchAnthropicQuotas,
   "openai-codex": fetchCodexQuotas,
   "github-copilot": fetchGitHubCopilotQuotas,
   openrouter: fetchOpenRouterQuotas,
   synthetic: fetchSyntheticQuotas,
+  deepseek: fetchDeepSeekQuotas,
 } as const;

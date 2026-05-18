@@ -6,6 +6,7 @@ import {
   fetchGitHubCopilotQuotas,
   fetchGitHubCopilotQuotasWithToken,
   fetchOpenRouterQuotasWithToken,
+  fetchDeepSeekQuotas,
 } from "./fetch.js";
 
 const originalFetch = globalThis.fetch;
@@ -174,6 +175,73 @@ describe("fetchGitHubCopilotQuotasWithToken", () => {
         headers: expect.objectContaining({ Authorization: "Bearer ghu-refresh-token" }),
       }),
     );
+  });
+});
+
+describe("fetchDeepSeekQuotas", () => {
+  it("returns config error when DEEPSEEK_API_KEY not set", async () => {
+    delete process.env.DEEPSEEK_API_KEY;
+    const result = await fetchDeepSeekQuotas({} as any);
+    expect(result).toMatchObject({
+      success: false,
+      error: { kind: "config" },
+    });
+  });
+
+  it("fetches and parses deepseek balance", async () => {
+    process.env.DEEPSEEK_API_KEY = "sk-test";
+
+    globalThis.fetch = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          is_available: true,
+          balance_infos: [
+            {
+              currency: "CNY",
+              total_balance: "0.00",
+              granted_balance: "0.00",
+              topped_up_balance: "0.00",
+            },
+            {
+              currency: "USD",
+              total_balance: "2.46",
+              granted_balance: "0.00",
+              topped_up_balance: "2.46",
+            },
+          ],
+        }),
+        { status: 200 },
+      ),
+    ) as any;
+
+    const result = await fetchDeepSeekQuotas({} as any);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.provider).toBe("deepseek");
+      expect(result.data.windows).toHaveLength(1);
+      expect(result.data.windows[0]).toMatchObject({
+        label: "Balance (USD)",
+        isCurrency: true,
+        usedValue: 2.46,
+      });
+    }
+
+    delete process.env.DEEPSEEK_API_KEY;
+  });
+
+  it("handles HTTP error", async () => {
+    process.env.DEEPSEEK_API_KEY = "sk-bad";
+    globalThis.fetch = vi.fn().mockResolvedValue(
+      new Response("Unauthorized", { status: 401 }),
+    ) as any;
+
+    const result = await fetchDeepSeekQuotas({} as any);
+    expect(result).toMatchObject({
+      success: false,
+      error: { kind: "http" },
+    });
+
+    delete process.env.DEEPSEEK_API_KEY;
   });
 });
 
