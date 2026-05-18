@@ -2,437 +2,492 @@ import type { QuotaWindow } from "../types/quotas.js";
 import { safePercent } from "../utils/quotas-severity.js";
 
 function parseDateish(value: unknown): Date {
-  if (typeof value === "number") {
-    const ms = value > 10 ** 11 ? value : value * 1000;
-    return new Date(ms);
-  }
-  if (typeof value === "string") return new Date(value);
-  return new Date(0);
+	if (typeof value === "number") {
+		const ms = value > 10 ** 11 ? value : value * 1000;
+		return new Date(ms);
+	}
+	if (typeof value === "string") return new Date(value);
+	return new Date(0);
 }
 
 function monthWindowSeconds(resetAt: Date): number {
-  const approxStart = new Date(resetAt);
-  approxStart.setMonth(approxStart.getMonth() - 1);
-  return Math.max(1, Math.round((resetAt.getTime() - approxStart.getTime()) / 1000));
+	const approxStart = new Date(resetAt);
+	approxStart.setMonth(approxStart.getMonth() - 1);
+	return Math.max(
+		1,
+		Math.round((resetAt.getTime() - approxStart.getTime()) / 1000),
+	);
 }
 
 export function parseAnthropicUsage(data: any): QuotaWindow[] {
-  const windows: QuotaWindow[] = [];
+	const windows: QuotaWindow[] = [];
 
-  if (data?.five_hour) {
-    windows.push({
-      provider: "anthropic",
-      label: "5h",
-      usedPercent: Number(data.five_hour.utilization ?? 0),
-      resetsAt: parseDateish(data.five_hour.resets_at),
-      windowSeconds: 5 * 60 * 60,
-      usedValue: Number(data.five_hour.utilization ?? 0),
-      limitValue: 100,
-      showPace: false,
-      nextLabel: "Resets",
-    });
-  }
+	if (data?.five_hour) {
+		windows.push({
+			provider: "anthropic",
+			label: "5h",
+			usedPercent: Number(data.five_hour.utilization ?? 0),
+			resetsAt: parseDateish(data.five_hour.resets_at),
+			windowSeconds: 5 * 60 * 60,
+			usedValue: Number(data.five_hour.utilization ?? 0),
+			limitValue: 100,
+			showPace: false,
+			nextLabel: "Resets",
+		});
+	}
 
-  if (data?.seven_day) {
-    windows.push({
-      provider: "anthropic",
-      label: "7d",
-      usedPercent: Number(data.seven_day.utilization ?? 0),
-      resetsAt: parseDateish(data.seven_day.resets_at),
-      windowSeconds: 7 * 24 * 60 * 60,
-      usedValue: Number(data.seven_day.utilization ?? 0),
-      limitValue: 100,
-      showPace: false,
-      nextLabel: "Resets",
-    });
-  }
+	if (data?.seven_day) {
+		windows.push({
+			provider: "anthropic",
+			label: "7d",
+			usedPercent: Number(data.seven_day.utilization ?? 0),
+			resetsAt: parseDateish(data.seven_day.resets_at),
+			windowSeconds: 7 * 24 * 60 * 60,
+			usedValue: Number(data.seven_day.utilization ?? 0),
+			limitValue: 100,
+			showPace: false,
+			nextLabel: "Resets",
+		});
+	}
 
-  // Per-model 7d windows
-  const modelWindows: Array<[string, string]> = [
-    ["seven_day_sonnet", "7d Sonnet"],
-    ["seven_day_omelette", "7d Opus"],
-    ["seven_day_opus", "7d Opus (legacy)"],
-  ];
-  for (const [key, label] of modelWindows) {
-    const entry = data?.[key];
-    if (entry && typeof entry === "object" && entry.utilization != null) {
-      windows.push({
-        provider: "anthropic",
-        label,
-        usedPercent: Number(entry.utilization),
-        resetsAt: parseDateish(entry.resets_at),
-        windowSeconds: 7 * 24 * 60 * 60,
-        usedValue: Number(entry.utilization),
-        limitValue: 100,
-        showPace: false,
-        nextLabel: "Resets",
-      });
-    }
-  }
+	// Per-model 7d windows
+	const modelWindows: Array<[string, string]> = [
+		["seven_day_sonnet", "7d Sonnet"],
+		["seven_day_omelette", "7d Opus"],
+		["seven_day_opus", "7d Opus (legacy)"],
+	];
+	for (const [key, label] of modelWindows) {
+		const entry = data?.[key];
+		if (entry && typeof entry === "object" && entry.utilization != null) {
+			windows.push({
+				provider: "anthropic",
+				label,
+				usedPercent: Number(entry.utilization),
+				resetsAt: parseDateish(entry.resets_at),
+				windowSeconds: 7 * 24 * 60 * 60,
+				usedValue: Number(entry.utilization),
+				limitValue: 100,
+				showPace: false,
+				nextLabel: "Resets",
+			});
+		}
+	}
 
-  // Extra usage (overage budget)
-  const extra = data?.extra_usage;
-  if (extra && extra.is_enabled && extra.monthly_limit > 0) {
-    const limitDollars = extra.monthly_limit / 100;
-    const usedDollars = (extra.used_credits ?? 0) / 100;
-    const currency = extra.currency ?? "USD";
-    windows.push({
-      provider: "anthropic",
-      label: `Extra (${currency})`,
-      usedPercent: Number(extra.utilization ?? safePercent(usedDollars, limitDollars)),
-      resetsAt: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1),
-      windowSeconds: 30 * 24 * 60 * 60,
-      usedValue: usedDollars,
-      limitValue: limitDollars,
-      isCurrency: true,
-      showPace: true,
-      paceScale: 1,
-      nextLabel: "Resets",
-    });
-  }
+	// Extra usage (overage budget)
+	const extra = data?.extra_usage;
+	if (extra && extra.is_enabled && extra.monthly_limit > 0) {
+		const limitDollars = extra.monthly_limit / 100;
+		const usedDollars = (extra.used_credits ?? 0) / 100;
+		const currency = extra.currency ?? "USD";
+		windows.push({
+			provider: "anthropic",
+			label: `Extra (${currency})`,
+			usedPercent: Number(
+				extra.utilization ?? safePercent(usedDollars, limitDollars),
+			),
+			resetsAt: new Date(
+				new Date().getFullYear(),
+				new Date().getMonth() + 1,
+				1,
+			),
+			windowSeconds: 30 * 24 * 60 * 60,
+			usedValue: usedDollars,
+			limitValue: limitDollars,
+			isCurrency: true,
+			showPace: true,
+			paceScale: 1,
+			nextLabel: "Resets",
+		});
+	}
 
-  return windows;
+	return windows;
 }
 
 function percentLeftToUsedPercent(limit: any): number {
-  if (limit?.percent_left != null) return Math.max(0, 100 - Number(limit.percent_left));
-  if (limit?.remaining_percent != null) return Math.max(0, 100 - Number(limit.remaining_percent));
-  if (limit?.used_percent != null) return Number(limit.used_percent);
-  return 0;
+	if (limit?.percent_left != null)
+		return Math.max(0, 100 - Number(limit.percent_left));
+	if (limit?.remaining_percent != null)
+		return Math.max(0, 100 - Number(limit.remaining_percent));
+	if (limit?.used_percent != null) return Number(limit.used_percent);
+	return 0;
 }
 
 export function parseCodexUsage(data: any): QuotaWindow[] {
-  const rateLimit = data?.rate_limit ?? data?.rate_limits ?? {};
-  const primary = rateLimit.primary_window ?? rateLimit.primary ?? rateLimit.five_hour_limit ?? rateLimit.five_hour;
-  const secondary = rateLimit.secondary_window ?? rateLimit.secondary ?? rateLimit.weekly_limit ?? rateLimit.weekly;
+	const rateLimit = data?.rate_limit ?? data?.rate_limits ?? {};
+	const primary =
+		rateLimit.primary_window ??
+		rateLimit.primary ??
+		rateLimit.five_hour_limit ??
+		rateLimit.five_hour;
+	const secondary =
+		rateLimit.secondary_window ??
+		rateLimit.secondary ??
+		rateLimit.weekly_limit ??
+		rateLimit.weekly;
 
-  const windows: QuotaWindow[] = [];
+	const windows: QuotaWindow[] = [];
 
-  if (primary) {
-    windows.push({
-      provider: "openai-codex",
-      label: "5h",
-      usedPercent: percentLeftToUsedPercent(primary),
-      resetsAt: parseDateish(primary.reset_at ?? primary.reset_time_ms),
-      windowSeconds: Number(primary.limit_window_seconds ?? 5 * 60 * 60),
-      usedValue: percentLeftToUsedPercent(primary),
-      limitValue: 100,
-      showPace: false,
-      nextLabel: "Resets",
-    });
-  }
+	if (primary) {
+		windows.push({
+			provider: "openai-codex",
+			label: "5h",
+			usedPercent: percentLeftToUsedPercent(primary),
+			resetsAt: parseDateish(primary.reset_at ?? primary.reset_time_ms),
+			windowSeconds: Number(primary.limit_window_seconds ?? 5 * 60 * 60),
+			usedValue: percentLeftToUsedPercent(primary),
+			limitValue: 100,
+			showPace: false,
+			nextLabel: "Resets",
+		});
+	}
 
-  if (secondary) {
-    windows.push({
-      provider: "openai-codex",
-      label: "7d",
-      usedPercent: percentLeftToUsedPercent(secondary),
-      resetsAt: parseDateish(secondary.reset_at ?? secondary.reset_time_ms),
-      windowSeconds: Number(secondary.limit_window_seconds ?? 7 * 24 * 60 * 60),
-      usedValue: percentLeftToUsedPercent(secondary),
-      limitValue: 100,
-      showPace: false,
-      nextLabel: "Resets",
-    });
-  }
+	if (secondary) {
+		windows.push({
+			provider: "openai-codex",
+			label: "7d",
+			usedPercent: percentLeftToUsedPercent(secondary),
+			resetsAt: parseDateish(secondary.reset_at ?? secondary.reset_time_ms),
+			windowSeconds: Number(secondary.limit_window_seconds ?? 7 * 24 * 60 * 60),
+			usedValue: percentLeftToUsedPercent(secondary),
+			limitValue: 100,
+			showPace: false,
+			nextLabel: "Resets",
+		});
+	}
 
-  // Credits balance
-  const credits = data?.credits;
-  if (credits && credits.has_credits && credits.balance != null) {
-    const balance = Number(credits.balance);
-    windows.push({
-      provider: "openai-codex",
-      label: "Credits",
-      usedPercent: 0,
-      resetsAt: new Date(0),
-      windowSeconds: 0,
-      usedValue: balance,
-      limitValue: balance,
-      isCurrency: true,
-      showPace: false,
-      nextLabel: credits.approx_local_messages
-        ? `~${credits.approx_local_messages} local msgs`
-        : undefined,
-    });
-  }
+	// Credits balance
+	const credits = data?.credits;
+	if (credits && credits.has_credits && credits.balance != null) {
+		const balance = Number(credits.balance);
+		windows.push({
+			provider: "openai-codex",
+			label: "Credits",
+			usedPercent: 0,
+			resetsAt: new Date(0),
+			windowSeconds: 0,
+			usedValue: balance,
+			limitValue: balance,
+			isCurrency: true,
+			showPace: false,
+			nextLabel: credits.approx_local_messages
+				? `~${credits.approx_local_messages} local msgs`
+				: undefined,
+		});
+	}
 
-  // Spend control
-  const spendControl = data?.spend_control;
-  if (spendControl) {
-    const reached = !!spendControl.reached;
-    windows.push({
-      provider: "openai-codex",
-      label: "Spend cap",
-      usedPercent: reached ? 100 : 0,
-      resetsAt: new Date(0),
-      windowSeconds: 0,
-      usedValue: reached ? 1 : 0,
-      limitValue: 1,
-      limited: reached,
-      showPace: false,
-      nextLabel: reached ? "Reached" : "OK",
-    });
-  }
+	// Spend control
+	const spendControl = data?.spend_control;
+	if (spendControl) {
+		const reached = !!spendControl.reached;
+		windows.push({
+			provider: "openai-codex",
+			label: "Spend cap",
+			usedPercent: reached ? 100 : 0,
+			resetsAt: new Date(0),
+			windowSeconds: 0,
+			usedValue: reached ? 1 : 0,
+			limitValue: 1,
+			limited: reached,
+			showPace: false,
+			nextLabel: reached ? "Reached" : "OK",
+		});
+	}
 
-  return windows;
+	return windows;
 }
 
 export function parseGitHubCopilotUsage(data: any): QuotaWindow[] {
-  const windows: QuotaWindow[] = [];
+	const windows: QuotaWindow[] = [];
 
-  const resetAt = parseDateish(data?.quota_reset_date ?? data?.quota_reset_date_utc ?? data?.limited_user_reset_date);
-  const periodSeconds = monthWindowSeconds(resetAt);
+	const resetAt = parseDateish(
+		data?.quota_reset_date ??
+			data?.quota_reset_date_utc ??
+			data?.limited_user_reset_date,
+	);
+	const periodSeconds = monthWindowSeconds(resetAt);
 
-  const snapshots = data?.quota_snapshots;
-  if (snapshots && typeof snapshots === "object") {
-    const mappings: Array<[string, string]> = [
-      ["premium_interactions", "Premium / month"],
-      ["chat", "Chat / month"],
-      ["completions", "Completions / month"],
-    ];
+	const snapshots = data?.quota_snapshots;
+	if (snapshots && typeof snapshots === "object") {
+		const mappings: Array<[string, string]> = [
+			["premium_interactions", "Premium / month"],
+			["chat", "Chat / month"],
+			["completions", "Completions / month"],
+		];
 
-    for (const [key, label] of mappings) {
-      const snap = snapshots[key];
-      if (!snap || snap.unlimited) continue;
-      const entitlement = Number(snap.entitlement ?? 0);
-      const remaining = Number(snap.remaining ?? snap.quota_remaining ?? 0);
-      if (entitlement <= 0) continue;
-      const overageCount = Number(snap.overage_count ?? 0);
-      const overagePermitted = !!snap.overage_permitted;
-      windows.push({
-        provider: "github-copilot",
-        label,
-        usedPercent: safePercent(entitlement - remaining, entitlement),
-        resetsAt: resetAt,
-        windowSeconds: periodSeconds,
-        usedValue: entitlement - remaining,
-        limitValue: entitlement,
-        showPace: true,
-        nextLabel: "Resets",
-        nextAmount: overageCount > 0
-          ? `+${overageCount} overage`
-          : overagePermitted
-            ? "overage allowed"
-            : undefined,
-      });
-    }
-    return windows;
-  }
+		for (const [key, label] of mappings) {
+			const snap = snapshots[key];
+			if (!snap || snap.unlimited) continue;
+			const entitlement = Number(snap.entitlement ?? 0);
+			const remaining = Number(snap.remaining ?? snap.quota_remaining ?? 0);
+			if (entitlement <= 0) continue;
+			const overageCount = Number(snap.overage_count ?? 0);
+			const overagePermitted = !!snap.overage_permitted;
+			windows.push({
+				provider: "github-copilot",
+				label,
+				usedPercent: safePercent(entitlement - remaining, entitlement),
+				resetsAt: resetAt,
+				windowSeconds: periodSeconds,
+				usedValue: entitlement - remaining,
+				limitValue: entitlement,
+				showPace: true,
+				nextLabel: "Resets",
+				nextAmount:
+					overageCount > 0
+						? `+${overageCount} overage`
+						: overagePermitted
+							? "overage allowed"
+							: undefined,
+			});
+		}
+		return windows;
+	}
 
-  if (data?.monthly_quotas && data?.limited_user_quotas) {
-    for (const [key, label] of [
-      ["chat", "Chat / month"],
-      ["completions", "Completions / month"],
-    ] as const) {
-      const limitValue = Number(data.monthly_quotas[key] ?? 0);
-      const remaining = Number(data.limited_user_quotas[key] ?? 0);
-      if (limitValue <= 0) continue;
-      windows.push({
-        provider: "github-copilot",
-        label,
-        usedPercent: safePercent(limitValue - remaining, limitValue),
-        resetsAt: resetAt,
-        windowSeconds: periodSeconds,
-        usedValue: limitValue - remaining,
-        limitValue,
-        showPace: true,
-        nextLabel: "Resets",
-      });
-    }
-  }
+	if (data?.monthly_quotas && data?.limited_user_quotas) {
+		for (const [key, label] of [
+			["chat", "Chat / month"],
+			["completions", "Completions / month"],
+		] as const) {
+			const limitValue = Number(data.monthly_quotas[key] ?? 0);
+			const remaining = Number(data.limited_user_quotas[key] ?? 0);
+			if (limitValue <= 0) continue;
+			windows.push({
+				provider: "github-copilot",
+				label,
+				usedPercent: safePercent(limitValue - remaining, limitValue),
+				resetsAt: resetAt,
+				windowSeconds: periodSeconds,
+				usedValue: limitValue - remaining,
+				limitValue,
+				showPace: true,
+				nextLabel: "Resets",
+			});
+		}
+	}
 
-  return windows;
+	return windows;
 }
 
 // Helper functions for OpenRouter date calculations (UTC-based)
 function calculateNextMidnightUTC(): Date {
-  const now = new Date();
-  const midnight = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1, 0, 0, 0));
-  return midnight;
+	const now = new Date();
+	const midnight = new Date(
+		Date.UTC(
+			now.getUTCFullYear(),
+			now.getUTCMonth(),
+			now.getUTCDate() + 1,
+			0,
+			0,
+			0,
+		),
+	);
+	return midnight;
 }
 
 function calculateNextMondayUTC(): Date {
-  const now = new Date();
-  const day = now.getUTCDay(); // 0 = Sunday, 1 = Monday, etc.
-  const daysUntilMonday = day === 0 ? 1 : (8 - day); // Days until next Monday
-  const monday = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + daysUntilMonday, 0, 0, 0));
-  return monday;
+	const now = new Date();
+	const day = now.getUTCDay(); // 0 = Sunday, 1 = Monday, etc.
+	const daysUntilMonday = day === 0 ? 1 : 8 - day; // Days until next Monday
+	const monday = new Date(
+		Date.UTC(
+			now.getUTCFullYear(),
+			now.getUTCMonth(),
+			now.getUTCDate() + daysUntilMonday,
+			0,
+			0,
+			0,
+		),
+	);
+	return monday;
 }
 
 function calculateNextMonthStartUTC(): Date {
-  const now = new Date();
-  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1, 0, 0, 0));
+	const now = new Date();
+	return new Date(
+		Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1, 0, 0, 0),
+	);
 }
 
 export function parseOpenRouterUsage(data: any): QuotaWindow[] {
-  const windows: QuotaWindow[] = [];
-  const keyData = data?.data;
+	const windows: QuotaWindow[] = [];
+	const keyData = data?.data;
 
-  if (!keyData) return windows;
+	if (!keyData) return windows;
 
-  const limit = keyData.limit;
-  const limitRemaining = keyData.limit_remaining;
-  const usageDaily = keyData.usage_daily ?? 0;
-  const usageWeekly = keyData.usage_weekly ?? 0;
-  const usageMonthly = keyData.usage_monthly ?? 0;
+	const limit = keyData.limit;
+	const limitRemaining = keyData.limit_remaining;
+	const usageDaily = keyData.usage_daily ?? 0;
+	const usageWeekly = keyData.usage_weekly ?? 0;
+	const usageMonthly = keyData.usage_monthly ?? 0;
 
-  // Monthly budget window (if limit is set)
-  if (limit != null && limit > 0) {
-    const usedPercent = safePercent(usageMonthly, limit);
-    windows.push({
-      provider: "openrouter",
-      label: "Monthly Budget",
-      usedPercent,
-      resetsAt: calculateNextMonthStartUTC(),
-      windowSeconds: 30 * 24 * 60 * 60,
-      usedValue: usageMonthly,
-      limitValue: limit,
-      isCurrency: true,
-      showPace: true,
-      paceScale: 1,
-      nextLabel: "Resets",
-    });
-  } else if (limitRemaining != null && limitRemaining >= 0) {
-    // Unlimited key with remaining tracked
-    windows.push({
-      provider: "openrouter",
-      label: "Credits Remaining",
-      usedPercent: 0,
-      resetsAt: new Date(0),
-      windowSeconds: 0,
-      usedValue: limitRemaining,
-      limitValue: limitRemaining,
-      isCurrency: true,
-      showPace: false,
-      nextLabel: undefined,
-    });
-  }
+	// Monthly budget window (if limit is set)
+	if (limit != null && limit > 0) {
+		const usedPercent = safePercent(usageMonthly, limit);
+		windows.push({
+			provider: "openrouter",
+			label: "Monthly Budget",
+			usedPercent,
+			resetsAt: calculateNextMonthStartUTC(),
+			windowSeconds: 30 * 24 * 60 * 60,
+			usedValue: usageMonthly,
+			limitValue: limit,
+			isCurrency: true,
+			showPace: true,
+			paceScale: 1,
+			nextLabel: "Resets",
+		});
+	} else if (limitRemaining != null && limitRemaining >= 0) {
+		// Unlimited key with remaining tracked
+		windows.push({
+			provider: "openrouter",
+			label: "Credits Remaining",
+			usedPercent: 0,
+			resetsAt: new Date(0),
+			windowSeconds: 0,
+			usedValue: limitRemaining,
+			limitValue: limitRemaining,
+			isCurrency: true,
+			showPace: false,
+			nextLabel: undefined,
+		});
+	}
 
-  // Daily usage window (tracking only)
-  windows.push({
-    provider: "openrouter",
-    label: "Daily",
-    usedPercent: 0,
-    resetsAt: calculateNextMidnightUTC(),
-    windowSeconds: 24 * 60 * 60,
-    usedValue: usageDaily,
-    limitValue: 0,
-    isCurrency: true,
-    showPace: false,
-    nextLabel: "UTC",
-  });
+	// Daily usage window (tracking only)
+	windows.push({
+		provider: "openrouter",
+		label: "Daily",
+		usedPercent: 0,
+		resetsAt: calculateNextMidnightUTC(),
+		windowSeconds: 24 * 60 * 60,
+		usedValue: usageDaily,
+		limitValue: 0,
+		isCurrency: true,
+		showPace: false,
+		nextLabel: "UTC",
+	});
 
-  // Weekly usage window (tracking only)
-  windows.push({
-    provider: "openrouter",
-    label: "Weekly",
-    usedPercent: 0,
-    resetsAt: calculateNextMondayUTC(),
-    windowSeconds: 7 * 24 * 60 * 60,
-    usedValue: usageWeekly,
-    limitValue: 0,
-    isCurrency: true,
-    showPace: false,
-    nextLabel: "Week",
-  });
+	// Weekly usage window (tracking only)
+	windows.push({
+		provider: "openrouter",
+		label: "Weekly",
+		usedPercent: 0,
+		resetsAt: calculateNextMondayUTC(),
+		windowSeconds: 7 * 24 * 60 * 60,
+		usedValue: usageWeekly,
+		limitValue: 0,
+		isCurrency: true,
+		showPace: false,
+		nextLabel: "Week",
+	});
 
-  // Monthly usage window (tracking only)
-  windows.push({
-    provider: "openrouter",
-    label: "Monthly",
-    usedPercent: 0,
-    resetsAt: calculateNextMonthStartUTC(),
-    windowSeconds: 30 * 24 * 60 * 60,
-    usedValue: usageMonthly,
-    limitValue: 0,
-    isCurrency: true,
-    showPace: false,
-    nextLabel: "Month",
-  });
+	// Monthly usage window (tracking only)
+	windows.push({
+		provider: "openrouter",
+		label: "Monthly",
+		usedPercent: 0,
+		resetsAt: calculateNextMonthStartUTC(),
+		windowSeconds: 30 * 24 * 60 * 60,
+		usedValue: usageMonthly,
+		limitValue: 0,
+		isCurrency: true,
+		showPace: false,
+		nextLabel: "Month",
+	});
 
-  return windows;
+	return windows;
 }
 
 /** Parse currency strings like "$24.00" to a number */
 function parseCurrency(value: string): number {
-  const n = Number(value.replace(/[^0-9.-]/g, ""));
-  return Number.isFinite(n) ? n : 0;
+	const n = Number(value.replace(/[^0-9.-]/g, ""));
+	return Number.isFinite(n) ? n : 0;
 }
 
 export function parseSyntheticUsage(data: any): QuotaWindow[] {
-  const windows: QuotaWindow[] = [];
+	const windows: QuotaWindow[] = [];
 
-  // Weekly token/credit limit (primary window for paid plans)
-  if (data?.weeklyTokenLimit) {
-    const { weeklyTokenLimit } = data.weeklyTokenLimit;
-    const limitValue = parseCurrency(data.weeklyTokenLimit.maxCredits);
-    const remainingValue = parseCurrency(data.weeklyTokenLimit.remainingCredits);
-    windows.push({
-      provider: "synthetic",
-      label: "Credits / week",
-      usedPercent: Math.max(0, Math.min(100, 100 - data.weeklyTokenLimit.percentRemaining)),
-      resetsAt: parseDateish(data.weeklyTokenLimit.nextRegenAt),
-      windowSeconds: 24 * 60 * 60,
-      usedValue: limitValue - remainingValue,
-      limitValue,
-      isCurrency: true,
-      showPace: true,
-      paceScale: 1 / 7,
-      nextAmount: `+${data.weeklyTokenLimit.nextRegenCredits}`,
-      nextLabel: "Next regen",
-    });
-  }
+	// Weekly token/credit limit (primary window for paid plans)
+	if (data?.weeklyTokenLimit) {
+		const limitValue = parseCurrency(data.weeklyTokenLimit.maxCredits);
+		const remainingValue = parseCurrency(
+			data.weeklyTokenLimit.remainingCredits,
+		);
+		windows.push({
+			provider: "synthetic",
+			label: "Credits / week",
+			usedPercent: Math.max(
+				0,
+				Math.min(100, 100 - data.weeklyTokenLimit.percentRemaining),
+			),
+			resetsAt: parseDateish(data.weeklyTokenLimit.nextRegenAt),
+			windowSeconds: 24 * 60 * 60,
+			usedValue: limitValue - remainingValue,
+			limitValue,
+			isCurrency: true,
+			showPace: true,
+			paceScale: 1 / 7,
+			nextAmount: `+${data.weeklyTokenLimit.nextRegenCredits}`,
+			nextLabel: "Next regen",
+		});
+	}
 
-  // Rolling 5-hour request limit
-  if (data?.rollingFiveHourLimit && data.rollingFiveHourLimit.max > 0) {
-    const used = data.rollingFiveHourLimit.max - data.rollingFiveHourLimit.remaining;
-    windows.push({
-      provider: "synthetic",
-      label: "Requests / 5h",
-      usedPercent: safePercent(used, data.rollingFiveHourLimit.max),
-      resetsAt: parseDateish(data.rollingFiveHourLimit.nextTickAt),
-      windowSeconds: 5 * 60 * 60,
-      usedValue: Math.round(used),
-      limitValue: data.rollingFiveHourLimit.max,
-      showPace: false,
-      limited: data.rollingFiveHourLimit.limited,
-      nextLabel: data.rollingFiveHourLimit.limited ? "Limited" : "Resets",
-    });
-  }
+	// Rolling 5-hour request limit
+	if (data?.rollingFiveHourLimit && data.rollingFiveHourLimit.max > 0) {
+		const used =
+			data.rollingFiveHourLimit.max - data.rollingFiveHourLimit.remaining;
+		windows.push({
+			provider: "synthetic",
+			label: "Requests / 5h",
+			usedPercent: safePercent(used, data.rollingFiveHourLimit.max),
+			resetsAt: parseDateish(data.rollingFiveHourLimit.nextTickAt),
+			windowSeconds: 5 * 60 * 60,
+			usedValue: Math.round(used),
+			limitValue: data.rollingFiveHourLimit.max,
+			showPace: false,
+			limited: data.rollingFiveHourLimit.limited,
+			nextLabel: data.rollingFiveHourLimit.limited ? "Limited" : "Resets",
+		});
+	}
 
-  // Search hourly (only if limit > 0)
-  if (data?.search?.hourly?.limit && data.search.hourly.limit > 0) {
-    windows.push({
-      provider: "synthetic",
-      label: "Search / hour",
-      usedPercent: safePercent(data.search.hourly.requests, data.search.hourly.limit),
-      resetsAt: parseDateish(data.search.hourly.renewsAt),
-      windowSeconds: 60 * 60,
-      usedValue: data.search.hourly.requests,
-      limitValue: data.search.hourly.limit,
-      showPace: true,
-      paceScale: 1,
-      nextLabel: "Resets",
-    });
-  }
+	// Search hourly (only if limit > 0)
+	if (data?.search?.hourly?.limit && data.search.hourly.limit > 0) {
+		windows.push({
+			provider: "synthetic",
+			label: "Search / hour",
+			usedPercent: safePercent(
+				data.search.hourly.requests,
+				data.search.hourly.limit,
+			),
+			resetsAt: parseDateish(data.search.hourly.renewsAt),
+			windowSeconds: 60 * 60,
+			usedValue: data.search.hourly.requests,
+			limitValue: data.search.hourly.limit,
+			showPace: true,
+			paceScale: 1,
+			nextLabel: "Resets",
+		});
+	}
 
-  // Free tool calls (only if limit > 0)
-  if (data?.freeToolCalls?.limit && data.freeToolCalls.limit > 0) {
-    windows.push({
-      provider: "synthetic",
-      label: "Free Tool Calls / day",
-      usedPercent: safePercent(data.freeToolCalls.requests, data.freeToolCalls.limit),
-      resetsAt: parseDateish(data.freeToolCalls.renewsAt),
-      windowSeconds: 24 * 60 * 60,
-      usedValue: data.freeToolCalls.requests,
-      limitValue: data.freeToolCalls.limit,
-      showPace: true,
-      paceScale: 1,
-      nextLabel: "Resets",
-    });
-  }
+	// Free tool calls (only if limit > 0)
+	if (data?.freeToolCalls?.limit && data.freeToolCalls.limit > 0) {
+		windows.push({
+			provider: "synthetic",
+			label: "Free Tool Calls / day",
+			usedPercent: safePercent(
+				data.freeToolCalls.requests,
+				data.freeToolCalls.limit,
+			),
+			resetsAt: parseDateish(data.freeToolCalls.renewsAt),
+			windowSeconds: 24 * 60 * 60,
+			usedValue: data.freeToolCalls.requests,
+			limitValue: data.freeToolCalls.limit,
+			showPace: true,
+			paceScale: 1,
+			nextLabel: "Resets",
+		});
+	}
 
-  return windows;
+	return windows;
 }
 
 /**
@@ -445,36 +500,40 @@ export function parseSyntheticUsage(data: any): QuotaWindow[] {
  * currency window since there is no usage history or reset window.
  */
 export function parseDeepSeekUsage(data: any): QuotaWindow[] {
-  const windows: QuotaWindow[] = [];
+	const windows: QuotaWindow[] = [];
 
-  if (!data?.balance_infos || !Array.isArray(data.balance_infos)) {
-    return windows;
-  }
+	if (!data?.balance_infos || !Array.isArray(data.balance_infos)) {
+		return windows;
+	}
 
-  // Prefer USD balance, fall back to CNY
-  const preferred = data.balance_infos.find(
-    (b: any) => b?.currency === "USD" && Number(b.total_balance ?? 0) > 0,
-  ) ?? data.balance_infos.find(
-    (b: any) => b?.currency === "CNY" && Number(b.total_balance ?? 0) > 0,
-  ) ?? data.balance_infos[0];
+	// Prefer USD balance, fall back to CNY
+	const preferred =
+		data.balance_infos.find(
+			(b: any) => b?.currency === "USD" && Number(b.total_balance ?? 0) > 0,
+		) ??
+		data.balance_infos.find(
+			(b: any) => b?.currency === "CNY" && Number(b.total_balance ?? 0) > 0,
+		) ??
+		data.balance_infos[0];
 
-  if (!preferred) return windows;
+	if (!preferred) return windows;
 
-  const balance = Number(preferred.total_balance ?? 0);
-  const currencyLabel = preferred.currency === "CNY" ? "CNY" : "USD";
+	const balance = Number(preferred.total_balance ?? 0);
+	const currencyLabel = preferred.currency ?? "USD";
 
-  windows.push({
-    provider: "deepseek",
-    label: `Balance (${currencyLabel})`,
-    usedPercent: 0,
-    resetsAt: new Date(0),
-    windowSeconds: 0,
-    usedValue: balance,
-    limitValue: 0,
-    isCurrency: true,
-    showPace: false,
-    nextLabel: "Available",
-  });
+	windows.push({
+		provider: "deepseek",
+		label: `Balance (${currencyLabel})`,
+		usedPercent: 0,
+		resetsAt: new Date(0),
+		windowSeconds: 0,
+		usedValue: balance,
+		limitValue: 0,
+		isCurrency: true,
+		isRemaining: true,
+		showPace: false,
+		nextLabel: "Available",
+	});
 
-  return windows;
+	return windows;
 }
